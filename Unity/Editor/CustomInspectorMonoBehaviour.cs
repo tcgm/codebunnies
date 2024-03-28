@@ -4,6 +4,8 @@ using System;
 using Object = UnityEngine.Object;
 using System.IO;
 using System.Text.RegularExpressions;
+using System.ComponentModel;
+using System.Diagnostics;
 
 [CustomEditor(typeof(MonoBehaviour), true)]
 public class CustomInspectorMonoBehaviour : Editor
@@ -67,7 +69,7 @@ public class CustomInspectorMonoBehaviour : Editor
                                     Component[] components = draggedGameObject.GetComponents<Component>();
                                     foreach (Component component in components)
                                     {
-                                        string compName = propName 
+                                        string compName = propName
                                             + component.GetType().Name
                                             + DateTime.Now.Millisecond;
 
