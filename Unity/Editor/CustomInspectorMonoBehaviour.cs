@@ -4,8 +4,8 @@ using System;
 using Object = UnityEngine.Object;
 using System.IO;
 using System.Text.RegularExpressions;
-using System.ComponentModel;
-using System.Diagnostics;
+using Debug = UnityEngine.Debug;
+using Component = UnityEngine.Component;
 
 [CustomEditor(typeof(MonoBehaviour), true)]
 public class CustomInspectorMonoBehaviour : Editor
@@ -14,7 +14,9 @@ public class CustomInspectorMonoBehaviour : Editor
 
     public override void OnInspectorGUI()
     {
-        serializedObject.Update();
+        serializedObject?.Update();
+
+        bool changesDetected = false;
 
         Event evt = Event.current;
         Rect dropArea = GUILayoutUtility.GetRect(0.0f, 50.0f, GUILayout.ExpandWidth(true));
@@ -37,8 +39,11 @@ public class CustomInspectorMonoBehaviour : Editor
                     foreach (Object draggedObject in DragAndDrop.objectReferences)
                     {
                         GameObject draggedGameObject = draggedObject as GameObject;
+
                         if (draggedGameObject != null)
                         {
+                            changesDetected = true;
+
                             string propName = draggedObject.name == null ?
                                 draggedObject.GetType().Name : draggedObject.name;
 
@@ -72,6 +77,8 @@ public class CustomInspectorMonoBehaviour : Editor
                                         string compName = propName
                                             + component.GetType().Name
                                             + DateTime.Now.Millisecond;
+
+                                        compName = Stripper.Strip(compName);
 
                                         // Add menu item for each component
                                         menu.AddItem(new GUIContent(component.GetType().Name), false, () =>
@@ -119,9 +126,9 @@ public class CustomInspectorMonoBehaviour : Editor
                                     Debug.Log("Script modified successfully.");
 
                                     // If the property doesn't exist, create a new one
-                                    serializedObject.Update();
+                                    serializedObject?.Update();
                                     gameObjectProperty = serializedObject.FindProperty(propName);
-                                    serializedObject.ApplyModifiedProperties();
+                                    serializedObject?.ApplyModifiedProperties();
                                 }
                             }
 
@@ -129,7 +136,7 @@ public class CustomInspectorMonoBehaviour : Editor
                             if (gameObjectProperty != null) gameObjectProperty.objectReferenceValue = draggedGameObject;
 
                             // Apply modifications
-                            serializedObject.ApplyModifiedProperties();
+                            serializedObject?.ApplyModifiedProperties();
                         }
                     }
                 }
@@ -137,13 +144,15 @@ public class CustomInspectorMonoBehaviour : Editor
                 break;
         }
 
-        serializedObject.ApplyModifiedProperties();
+        //serializedObject?.ApplyModifiedProperties();
 
-        // Draw default inspector properties
+        // Draw default inspector properties and apply changes if any detected.
         DrawDefaultInspector();
 
-        // Mark the target MonoBehaviour as dirty to refresh the inspector
-        EditorUtility.SetDirty(target);
+        if (changesDetected && serializedObject.ApplyModifiedProperties())
+        {
+            EditorUtility.SetDirty(target);
+        }
     }
 
     private void AddComponentToScript(string scriptPath, Type componentType, string propName)

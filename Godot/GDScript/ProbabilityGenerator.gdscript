@@ -1,0 +1,85 @@
+extends Node
+
+class_name ProbabilityGenerator
+
+enum CurveType {
+    EXPONENTIAL,
+    LINEAR,
+    LOGARITHMIC,
+    QUADRATIC,
+    CUBIC,
+    SIGMOID,
+    INVERSE_QUADRATIC,
+    CUSTOM
+}
+
+static func generate_chances_array(num_instances: int, start_percentage: float, end_percentage: float, whole_numbers: bool = true, curve: int = CurveType.EXPONENTIAL, custom_func: Callable = null) -> Array:
+    return generate_chances(num_instances, start_percentage, end_percentage, whole_numbers, curve, custom_func)
+
+static func generate_chances_list(num_instances: int, start_percentage: float, end_percentage: float, whole_numbers: bool = true, curve: int = CurveType.EXPONENTIAL, custom_func: Callable = null) -> Array:
+    return generate_chances(num_instances, start_percentage, end_percentage, whole_numbers, curve, custom_func)
+
+static func assign_probabilities(items: Array, start_percentage: float, end_percentage: float, whole_numbers: bool = true, curve: int = CurveType.EXPONENTIAL, custom_func: Callable = null) -> Dictionary:
+    var count = items.size()
+    if count < 2:
+        push_error("Item list must contain at least 2 elements.")
+        return {}
+
+    var probabilities = generate_chances(count, start_percentage, end_percentage, whole_numbers, curve, custom_func)
+    var result = {}
+
+    for i in range(count):
+        result[items[i]] = probabilities[i]
+
+    return result
+
+static func generate_chances(num_instances: int, start_percentage: float, end_percentage: float, whole_numbers: bool, curve: int, custom_func: Callable) -> Array:
+    if num_instances < 2:
+        push_error("Number of instances must be at least 2.")
+        return []
+
+    if whole_numbers:
+        start_percentage = round(start_percentage)
+        end_percentage = max(1, round(end_percentage))
+
+    var chances = []
+
+    for i in range(num_instances):
+        var t = float(i) / (num_instances - 1)
+        var value = 0.0
+
+        match curve:
+            CurveType.LINEAR:
+                value = start_percentage - t * (start_percentage - end_percentage)
+            CurveType.LOGARITHMIC:
+                value = start_percentage / (1 + t * (start_percentage / end_percentage - 1))
+            CurveType.QUADRATIC:
+                value = start_percentage * pow(1 - t, 2) + end_percentage * (1 - pow(1 - t, 2))
+            CurveType.CUBIC:
+                value = start_percentage * pow(1 - t, 3) + end_percentage * (1 - pow(1 - t, 3))
+            CurveType.SIGMOID:
+                value = start_percentage / (1 + exp(-10 * (t - 0.5))) + end_percentage * (1 - 1 / (1 + exp(-10 * (t - 0.5))))
+            CurveType.INVERSE_QUADRATIC:
+                value = start_percentage / (1 + pow(t * (start_percentage / end_percentage), 2))
+            CurveType.CUSTOM:
+                if custom_func:
+                    value = start_percentage + (end_percentage - start_percentage) * custom_func.call(t)
+                else:
+                    value = start_percentage  # Default fallback
+            _:
+                value = start_percentage * pow(end_percentage / start_percentage, t)
+
+        chances.append(round(value) if whole_numbers else value)
+
+    return chances
+
+# Predefined custom curves
+static func custom_curves() -> Dictionary:
+    return {
+        "HalfLife": func(t: float) -> float: return pow(0.5, t * 5),
+        "SteepDrop": func(t: float) -> float: return 1 - pow(t, 2),
+        "SoftDrop": func(t: float) -> float: return sqrt(1 - t),
+        "BellCurve": func(t: float) -> float: return exp(-pow((t - 0.5) * 5, 2)),
+        "SCurve": func(t: float) -> float: return 1 / (1 + exp(-10 * (t - 0.5))),
+        "SharpEdge": func(t: float) -> float: return pow(t, 5)
+    }
